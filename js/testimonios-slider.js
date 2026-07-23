@@ -211,25 +211,30 @@ function escaparHTML(texto) {
 // ABRIR FORMULARIO
 // ========================================
 
-if (btnDejarOpinion) {
+document.addEventListener("click", function(e) {
 
-  btnDejarOpinion.addEventListener(
-    "click",
-    function () {
+  if (e.target && e.target.closest("#btn-dejar-opinion")) {
 
-      formulario.style.display =
-        "block";
+    const formulario =
+      document.getElementById("formulario-opinion");
 
-      formulario.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
-
+    if (!formulario) {
+      console.error(
+        "No se encontró #formulario-opinion"
+      );
+      return;
     }
-  );
 
-}
+    formulario.style.display = "block";
 
+    formulario.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+  }
+
+});
 
 // ========================================
 // LOGIN CON GOOGLE
