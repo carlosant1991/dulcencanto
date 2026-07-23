@@ -1,10 +1,20 @@
+// ========================================
+// TESTIMONIOS + FIREBASE
+// DULCE ENCANTO
+// ========================================
+
+
+// ========================================
+// IMPORTAR FIREBASE
+// ========================================
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  onAuthStateChanged,
-  signOut
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 
 import {
@@ -35,219 +45,226 @@ const firebaseConfig = {
 
 
 // ========================================
+// VARIABLES FIREBASE
+// ========================================
+
+let app = null;
+let auth = null;
+let db = null;
+let provider = null;
+
+
+// ========================================
+// ELEMENTOS DE LA PÁGINA
+// ========================================
+
+let slider;
+let botonDejarOpinion;
+let formulario;
+let botonGoogle;
+let usuarioOpinion;
+let formularioContenido;
+let usuarioLogueado;
+let textoOpinion;
+let contadorOpinion;
+let botonEnviar;
+let botonCerrar;
+let mensajeOpinion;
+
+
+// ========================================
+// INICIALIZAR INTERFAZ
+// ========================================
+
+function inicializarInterfaz() {
+
+  slider =
+    document.getElementById("testimonios-slider");
+
+  botonDejarOpinion =
+    document.getElementById("btn-dejar-opinion");
+
+  formulario =
+    document.getElementById("formulario-opinion");
+
+  botonGoogle =
+    document.getElementById("btn-google-login");
+
+  usuarioOpinion =
+    document.getElementById("usuario-opinion");
+
+  formularioContenido =
+    document.getElementById("form-opinion-contenido");
+
+  usuarioLogueado =
+    document.getElementById("usuario-logueado");
+
+  textoOpinion =
+    document.getElementById("texto-opinion");
+
+  contadorOpinion =
+    document.getElementById("contador-opinion");
+
+  botonEnviar =
+    document.getElementById("btn-enviar-opinion");
+
+  botonCerrar =
+    document.getElementById("btn-cerrar-opinion");
+
+  mensajeOpinion =
+    document.getElementById("mensaje-opinion");
+
+
+  // ========================================
+  // BOTÓN DEJAR OPINIÓN
+  // ========================================
+
+  if (botonDejarOpinion) {
+
+    botonDejarOpinion.addEventListener(
+      "click",
+      function () {
+
+        if (!formulario) {
+          console.error(
+            "No se encontró el formulario de opiniones."
+          );
+          return;
+        }
+
+        formulario.style.display = "block";
+
+        formulario.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+
+      }
+    );
+
+  }
+
+
+  // ========================================
+  // BOTÓN CERRAR
+  // ========================================
+
+  if (botonCerrar) {
+
+    botonCerrar.addEventListener(
+      "click",
+      function () {
+
+        formulario.style.display = "none";
+
+      }
+    );
+
+  }
+
+
+  // ========================================
+  // CONTADOR DE CARACTERES
+  // ========================================
+
+  if (textoOpinion) {
+
+    textoOpinion.addEventListener(
+      "input",
+      function () {
+
+        if (contadorOpinion) {
+
+          contadorOpinion.textContent =
+            textoOpinion.value.length;
+
+        }
+
+      }
+    );
+
+  }
+
+}
+
+
+// ========================================
 // INICIALIZAR FIREBASE
 // ========================================
 
-const app = initializeApp(firebaseConfig);
-
-const auth = getAuth(app);
-
-const db = getFirestore(app);
-
-const provider = new GoogleAuthProvider();
-
-
-// ========================================
-// ELEMENTOS DEL HTML
-// ========================================
-
-const slider = document.getElementById("testimonios-slider");
-
-const btnDejarOpinion =
-  document.getElementById("btn-dejar-opinion");
-
-const formulario =
-  document.getElementById("formulario-opinion");
-
-const btnGoogleLogin =
-  document.getElementById("btn-google-login");
-
-const contenidoFormulario =
-  document.getElementById("form-opinion-contenido");
-
-const usuarioOpinion =
-  document.getElementById("usuario-opinion");
-
-const usuarioLogueado =
-  document.getElementById("usuario-logueado");
-
-const textoOpinion =
-  document.getElementById("texto-opinion");
-
-const btnEnviarOpinion =
-  document.getElementById("btn-enviar-opinion");
-
-const btnCerrarOpinion =
-  document.getElementById("btn-cerrar-opinion");
-
-const mensajeOpinion =
-  document.getElementById("mensaje-opinion");
-
-const contadorOpinion =
-  document.getElementById("contador-opinion");
-
-
-// ========================================
-// CARGAR OPINIONES
-// ========================================
-
-async function cargarOpiniones() {
-
-  if (!slider) return;
-
-  slider.innerHTML = `
-    <div class="testimonio cargando-opiniones">
-      <p>Cargando opiniones...</p>
-    </div>
-  `;
+function inicializarFirebase() {
 
   try {
 
-    const opinionesRef =
-      collection(db, "opiniones");
+    app =
+      initializeApp(firebaseConfig);
 
-    const q = query(
-      opinionesRef,
-      where("aprobada", "==", true),
-      orderBy("fecha", "desc"),
-      limit(7)
+    auth =
+      getAuth(app);
+
+    db =
+      getFirestore(app);
+
+    provider =
+      new GoogleAuthProvider();
+
+    console.log(
+      "Firebase inicializado correctamente."
     );
 
-    const snapshot =
-      await getDocs(q);
+    configurarAutenticacion();
 
-    slider.innerHTML = "";
+    configurarLoginGoogle();
 
-    if (snapshot.empty) {
+    configurarEnvioOpinion();
 
-      slider.innerHTML = `
-        <div class="testimonio cargando-opiniones">
-          <div class="stars">
-            &#9733;&#9733;&#9733;&#9733;&#9733;
-          </div>
-
-          <p>
-            Sé el primero en compartir tu experiencia con nosotros.
-          </p>
-
-          <span>
-            Dulce Encanto &#8211; Repostería Artesanal
-          </span>
-        </div>
-      `;
-
-      return;
-    }
-
-
-    snapshot.forEach((doc) => {
-
-      const opinion = doc.data();
-
-      const tarjeta =
-        document.createElement("div");
-
-      tarjeta.className =
-        "testimonio";
-
-      tarjeta.innerHTML = `
-
-        <div class="stars">
-          &#9733;&#9733;&#9733;&#9733;&#9733;
-        </div>
-
-        <p>
-          &#8220;${escaparHTML(opinion.comentario)}&#8221;
-        </p>
-
-        <span>
-          ${escaparHTML(opinion.nombre || "Cliente")}
-        </span>
-
-      `;
-
-      slider.appendChild(tarjeta);
-
-    });
+    cargarOpiniones();
 
   } catch (error) {
 
     console.error(
-      "Error al cargar opiniones:",
+      "Error al inicializar Firebase:",
       error
     );
 
-    slider.innerHTML = `
-      <div class="testimonio cargando-opiniones">
-        <p>
-          No se pudieron cargar las opiniones.
-        </p>
-      </div>
-    `;
+    if (mensajeOpinion) {
 
-  }
+      mensajeOpinion.textContent =
+        "El sistema de opiniones no está disponible temporalmente.";
 
-}
-
-
-// ========================================
-// ESCAPAR HTML
-// ========================================
-
-function escaparHTML(texto) {
-
-  const div =
-    document.createElement("div");
-
-  div.textContent =
-    texto || "";
-
-  return div.innerHTML;
-
-}
-
-
-// ========================================
-// ABRIR FORMULARIO
-// ========================================
-
-document.addEventListener("click", function(e) {
-
-  if (e.target && e.target.closest("#btn-dejar-opinion")) {
-
-    const formulario =
-      document.getElementById("formulario-opinion");
-
-    if (!formulario) {
-      console.error(
-        "No se encontró #formulario-opinion"
-      );
-      return;
     }
 
-    formulario.style.display = "block";
-
-    formulario.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
-
   }
 
-});
+}
+
 
 // ========================================
-// LOGIN CON GOOGLE
+// INICIO DE SESIÓN CON GOOGLE
 // ========================================
 
-if (btnGoogleLogin) {
+function configurarLoginGoogle() {
 
-  btnGoogleLogin.addEventListener(
+  if (!botonGoogle) return;
+
+  botonGoogle.addEventListener(
     "click",
     async function () {
 
-      mensajeOpinion.textContent =
+      if (!auth) {
+
+        mensajeOpinion.textContent =
+          "El sistema de inicio de sesión no está disponible.";
+
+        return;
+
+      }
+
+      botonGoogle.disabled = true;
+
+      botonGoogle.textContent =
         "Conectando con Google...";
+
 
       try {
 
@@ -259,12 +276,31 @@ if (btnGoogleLogin) {
       } catch (error) {
 
         console.error(
-          "Error de inicio de sesión:",
+          "Error al iniciar sesión con Google:",
           error
         );
 
-        mensajeOpinion.textContent =
-          "No se pudo iniciar sesión con Google.";
+        if (
+          error.code ===
+          "auth/popup-closed-by-user"
+        ) {
+
+          mensajeOpinion.textContent =
+            "El inicio de sesión fue cancelado.";
+
+        } else {
+
+          mensajeOpinion.textContent =
+            "No se pudo iniciar sesión con Google.";
+
+        }
+
+      } finally {
+
+        botonGoogle.disabled = false;
+
+        botonGoogle.textContent =
+          "🔐 Iniciar sesión con Google";
 
       }
 
@@ -275,81 +311,274 @@ if (btnGoogleLogin) {
 
 
 // ========================================
-// ESTADO DEL USUARIO
+// ESTADO DE AUTENTICACIÓN
 // ========================================
 
-onAuthStateChanged(
-  auth,
-  function (user) {
+function configurarAutenticacion() {
 
-    if (!user) {
+  if (!auth) return;
+
+  onAuthStateChanged(
+    auth,
+    function (user) {
+
+      if (!user) {
+
+        if (usuarioOpinion) {
+
+          usuarioOpinion.style.display =
+            "block";
+
+        }
+
+        if (formularioContenido) {
+
+          formularioContenido.style.display =
+            "none";
+
+        }
+
+        return;
+
+      }
+
+
+      // USUARIO AUTENTICADO
 
       if (usuarioOpinion) {
 
         usuarioOpinion.style.display =
+          "none";
+
+      }
+
+      if (formularioContenido) {
+
+        formularioContenido.style.display =
           "block";
 
       }
 
-      if (contenidoFormulario) {
+      if (usuarioLogueado) {
 
-        contenidoFormulario.style.display =
-          "none";
+        usuarioLogueado.textContent =
+          "Hola, " +
+          (
+            user.displayName ||
+            "cliente"
+          ) +
+          ". Escribe tu opinión:";
 
       }
+
+      if (mensajeOpinion) {
+
+        mensajeOpinion.textContent =
+          "";
+
+      }
+
+    }
+  );
+
+}
+
+
+// ========================================
+// CARGAR OPINIONES APROBADAS
+// ========================================
+
+async function cargarOpiniones() {
+
+  if (!slider || !db) return;
+
+
+  slider.innerHTML = `
+    <div class="testimonio cargando-opiniones">
+      <p>Cargando opiniones...</p>
+    </div>
+  `;
+
+
+  try {
+
+    const opinionesRef =
+      collection(
+        db,
+        "opiniones"
+      );
+
+
+    const consulta =
+      query(
+        opinionesRef,
+
+        where(
+          "aprobada",
+          "==",
+          true
+        ),
+
+        orderBy(
+          "fecha",
+          "desc"
+        ),
+
+        limit(7)
+      );
+
+
+    const resultado =
+      await getDocs(
+        consulta
+      );
+
+
+    slider.innerHTML =
+      "";
+
+
+    // ====================================
+    // SIN OPINIONES
+    // ====================================
+
+    if (resultado.empty) {
+
+      slider.innerHTML = `
+        <div class="testimonio cargando-opiniones">
+
+          <div class="stars">
+            &#9733;&#9733;&#9733;&#9733;&#9733;
+          </div>
+
+          <p>
+            Sé el primero en compartir tu experiencia con nosotros.
+          </p>
+
+          <span>
+            Dulce Encanto &#8211; Repostería Artesanal
+          </span>
+
+        </div>
+      `;
 
       return;
 
     }
 
 
-    if (usuarioOpinion) {
+    // ====================================
+    // MOSTRAR OPINIONES
+    // ====================================
 
-      usuarioOpinion.style.display =
-        "none";
+    resultado.forEach(
+      function (documento) {
+
+        const opinion =
+          documento.data();
+
+
+        const tarjeta =
+          document.createElement(
+            "div"
+          );
+
+
+        tarjeta.className =
+          "testimonio";
+
+
+        const estrellas =
+          document.createElement(
+            "div"
+          );
+
+        estrellas.className =
+          "stars";
+
+        estrellas.innerHTML =
+          "&#9733;&#9733;&#9733;&#9733;&#9733;";
+
+
+        const comentario =
+          document.createElement(
+            "p"
+          );
+
+        comentario.textContent =
+          "“" +
+          (
+            opinion.comentario ||
+            ""
+          ) +
+          "”";
+
+
+        const autor =
+          document.createElement(
+            "span"
+          );
+
+        autor.textContent =
+          opinion.nombre ||
+          "Cliente";
+
+
+        tarjeta.appendChild(
+          estrellas
+        );
+
+        tarjeta.appendChild(
+          comentario
+        );
+
+        tarjeta.appendChild(
+          autor
+        );
+
+
+        slider.appendChild(
+          tarjeta
+        );
+
+      }
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Error al cargar opiniones:",
+      error
+    );
+
+
+    slider.innerHTML = `
+      <div class="testimonio cargando-opiniones">
+
+        <p>
+          Las opiniones estarán disponibles próximamente.
+        </p>
+
+      </div>
+    `;
+
+
+    // Mostrar información del índice
+    if (
+      error.message &&
+      error.message.includes(
+        "index"
+      )
+    ) {
+
+      console.warn(
+        "Firestore necesita crear un índice compuesto para aprobada y fecha."
+      );
 
     }
-
-
-    if (contenidoFormulario) {
-
-      contenidoFormulario.style.display =
-        "block";
-
-    }
-
-
-    if (usuarioLogueado) {
-
-      usuarioLogueado.textContent =
-        "Hola, " +
-        (user.displayName || "cliente") +
-        ". Escribe tu opinión:";
-
-    }
-
-    mensajeOpinion.textContent =
-      "";
 
   }
-);
-
-
-// ========================================
-// CONTADOR DE CARACTERES
-// ========================================
-
-if (textoOpinion) {
-
-  textoOpinion.addEventListener(
-    "input",
-    function () {
-
-      contadorOpinion.textContent =
-        textoOpinion.value.length;
-
-    }
-  );
 
 }
 
@@ -358,16 +587,34 @@ if (textoOpinion) {
 // ENVIAR OPINIÓN
 // ========================================
 
-if (btnEnviarOpinion) {
+function configurarEnvioOpinion() {
 
-  btnEnviarOpinion.addEventListener(
+  if (!botonEnviar) return;
+
+
+  botonEnviar.addEventListener(
     "click",
     async function () {
 
-      const user =
+      if (!auth) {
+
+        mensajeOpinion.textContent =
+          "El sistema de opiniones no está disponible.";
+
+        return;
+
+      }
+
+
+      const usuario =
         auth.currentUser;
 
-      if (!user) {
+
+      // ==================================
+      // COMPROBAR LOGIN
+      // ==================================
+
+      if (!usuario) {
 
         mensajeOpinion.textContent =
           "Debes iniciar sesión con Google.";
@@ -377,9 +624,17 @@ if (btnEnviarOpinion) {
       }
 
 
+      // ==================================
+      // OBTENER TEXTO
+      // ==================================
+
       const comentario =
         textoOpinion.value.trim();
 
+
+      // ==================================
+      // VALIDACIONES
+      // ==================================
 
       if (!comentario) {
 
@@ -393,7 +648,10 @@ if (btnEnviarOpinion) {
       }
 
 
-      if (comentario.length < 10) {
+      if (
+        comentario.length <
+        10
+      ) {
 
         mensajeOpinion.textContent =
           "Tu opinión debe tener al menos 10 caracteres.";
@@ -405,38 +663,48 @@ if (btnEnviarOpinion) {
       }
 
 
-      if (comentario.length > 500) {
+      if (
+        comentario.length >
+        500
+      ) {
 
         mensajeOpinion.textContent =
-          "La opinión no puede superar los 500 caracteres.";
+          "Tu opinión no puede superar los 500 caracteres.";
 
         return;
 
       }
 
 
-      btnEnviarOpinion.disabled =
+      // ==================================
+      // DESACTIVAR BOTÓN
+      // ==================================
+
+      botonEnviar.disabled =
         true;
 
-      btnEnviarOpinion.textContent =
+      botonEnviar.textContent =
         "Enviando...";
 
 
       try {
 
         await addDoc(
-          collection(db, "opiniones"),
+          collection(
+            db,
+            "opiniones"
+          ),
           {
 
             nombre:
-              user.displayName ||
+              usuario.displayName ||
               "Cliente",
 
             comentario:
               comentario,
 
             uid:
-              user.uid,
+              usuario.uid,
 
             aprobada:
               false,
@@ -448,6 +716,10 @@ if (btnEnviarOpinion) {
         );
 
 
+        // ==================================
+        // LIMPIAR
+        // ==================================
+
         textoOpinion.value =
           "";
 
@@ -456,12 +728,16 @@ if (btnEnviarOpinion) {
 
 
         mensajeOpinion.textContent =
-          "¡Gracias por tu opinión! Será revisada antes de publicarse.";
+          "¡Gracias! Tu opinión fue enviada y será revisada antes de publicarse.";
 
 
-        btnEnviarOpinion.textContent =
+        botonEnviar.textContent =
           "Opinión enviada";
 
+
+        // ==================================
+        // CERRAR FORMULARIO
+        // ==================================
 
         setTimeout(
           function () {
@@ -469,10 +745,10 @@ if (btnEnviarOpinion) {
             formulario.style.display =
               "none";
 
-            btnEnviarOpinion.disabled =
+            botonEnviar.disabled =
               false;
 
-            btnEnviarOpinion.textContent =
+            botonEnviar.textContent =
               "Publicar mi opinión";
 
             mensajeOpinion.textContent =
@@ -486,17 +762,19 @@ if (btnEnviarOpinion) {
       } catch (error) {
 
         console.error(
-          "Error al guardar opinión:",
+          "Error al guardar la opinión:",
           error
         );
 
-        mensajeOpinion.textContent =
-          "No se pudo enviar tu opinión. Inténtalo nuevamente.";
 
-        btnEnviarOpinion.disabled =
+        mensajeOpinion.textContent =
+          "No se pudo enviar la opinión. Inténtalo nuevamente.";
+
+
+        botonEnviar.disabled =
           false;
 
-        btnEnviarOpinion.textContent =
+        botonEnviar.textContent =
           "Publicar mi opinión";
 
       }
@@ -508,71 +786,76 @@ if (btnEnviarOpinion) {
 
 
 // ========================================
-// CERRAR FORMULARIO
+// CARRUSEL AUTOMÁTICO
 // ========================================
 
-if (btnCerrarOpinion) {
+function iniciarCarrusel() {
 
-  btnCerrarOpinion.addEventListener(
-    "click",
+  setInterval(
     function () {
 
-      formulario.style.display =
-        "none";
+      if (!slider) return;
 
-    }
+
+      const maxScroll =
+        slider.scrollWidth -
+        slider.clientWidth;
+
+
+      // Si llegó al final
+      if (
+        slider.scrollLeft >=
+        maxScroll - 10
+      ) {
+
+        slider.scrollTo({
+
+          left: 0,
+
+          behavior: "smooth"
+
+        });
+
+      } else {
+
+        slider.scrollBy({
+
+          left: 280,
+
+          behavior: "smooth"
+
+        });
+
+      }
+
+    },
+    4000
   );
 
 }
 
 
 // ========================================
-// CARGAR OPINIONES AL INICIAR
+// INICIO PRINCIPAL
 // ========================================
 
 document.addEventListener(
   "DOMContentLoaded",
   function () {
 
-    cargarOpiniones();
+    // Primero inicializar la interfaz
+    // para que el botón funcione
+    // independientemente de Firebase.
+
+    inicializarInterfaz();
+
+    // Iniciar carrusel
+
+    iniciarCarrusel();
+
+    // Inicializar Firebase
+
+    inicializarFirebase();
 
   }
-);
-
-
-// ========================================
-// CARRUSEL AUTOMÁTICO
-// ========================================
-
-setInterval(
-  function () {
-
-    if (!slider) return;
-
-    const maxScroll =
-      slider.scrollWidth -
-      slider.clientWidth;
-
-
-    if (
-      slider.scrollLeft >=
-      maxScroll - 10
-    ) {
-
-      slider.scrollTo({
-        left: 0,
-        behavior: "smooth"
-      });
-
-    } else {
-
-      slider.scrollBy({
-        left: 280,
-        behavior: "smooth"
-      });
-
-    }
-
-  },
-  4000
 );
