@@ -1,6 +1,6 @@
 // ========================================
 // TESTIMONIOS - DULCE ENCANTO
-// GOOGLE LOGIN + FIRESTORE
+// GOOGLE LOGIN + FIRESTORE + CARRUSEL
 // ========================================
 
 
@@ -21,7 +21,13 @@ import {
   getFirestore,
   collection,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 
@@ -50,6 +56,17 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const provider = new GoogleAuthProvider();
+
+
+// ========================================
+// VARIABLES DEL CARRUSEL
+// ========================================
+
+let opinionesActuales = [];
+
+let indiceActual = 0;
+
+let intervaloCarrusel = null;
 
 
 // ========================================
@@ -124,26 +141,10 @@ document.addEventListener(
         "mensaje-opinion"
       );
 
-
-    console.log(
-      "Botón opinión:",
-      botonDejarOpinion
-    );
-
-    console.log(
-      "Formulario:",
-      formulario
-    );
-
-    console.log(
-      "Botón Google:",
-      botonGoogle
-    );
-
-    console.log(
-      "Botón publicar:",
-      botonEnviar
-    );
+    const slider =
+      document.getElementById(
+        "testimonios-slider"
+      );
 
 
     // ==================================
@@ -158,10 +159,6 @@ document.addEventListener(
       botonDejarOpinion.addEventListener(
         "click",
         function () {
-
-          console.log(
-            "✅ BOTÓN DEJAR OPINIÓN PRESIONADO"
-          );
 
           formulario.style.display =
             "block";
@@ -226,9 +223,7 @@ document.addEventListener(
             );
 
 
-            // ==============================
             // OCULTAR LOGIN
-            // ==============================
 
             if (usuarioOpinion) {
 
@@ -238,9 +233,7 @@ document.addEventListener(
             }
 
 
-            // ==============================
             // MOSTRAR FORMULARIO
-            // ==============================
 
             if (formularioContenido) {
 
@@ -250,9 +243,7 @@ document.addEventListener(
             }
 
 
-            // ==============================
             // MOSTRAR NOMBRE
-            // ==============================
 
             if (usuarioLogueado) {
 
@@ -275,9 +266,7 @@ document.addEventListener(
             );
 
 
-            if (
-              mensajeOpinion
-            ) {
+            if (mensajeOpinion) {
 
               if (
                 error.code ===
@@ -350,13 +339,11 @@ document.addEventListener(
           );
 
 
-          // ==============================
-          // VERIFICAR USUARIO
-          // ==============================
-
           const usuario =
             auth.currentUser;
 
+
+          // VERIFICAR USUARIO
 
           if (!usuario) {
 
@@ -372,9 +359,7 @@ document.addEventListener(
           }
 
 
-          // ==============================
           // OBTENER TEXTO
-          // ==============================
 
           const texto =
             textoOpinion
@@ -382,9 +367,7 @@ document.addEventListener(
               : "";
 
 
-          // ==============================
-          // VALIDAR OPINIÓN
-          // ==============================
+          // VALIDAR TEXTO
 
           if (!texto) {
 
@@ -414,9 +397,7 @@ document.addEventListener(
           }
 
 
-          // ==============================
           // DESACTIVAR BOTÓN
-          // ==============================
 
           botonEnviar.disabled =
             true;
@@ -435,9 +416,7 @@ document.addEventListener(
 
           try {
 
-            // ============================
             // GUARDAR EN FIRESTORE
-            // ============================
 
             await addDoc(
               collection(
@@ -479,9 +458,7 @@ document.addEventListener(
             );
 
 
-            // ============================
-            // LIMPIAR FORMULARIO
-            // ============================
+            // LIMPIAR
 
             if (textoOpinion) {
 
@@ -499,9 +476,7 @@ document.addEventListener(
             }
 
 
-            // ============================
-            // MENSAJE DE CONFIRMACIÓN
-            // ============================
+            // MENSAJE
 
             if (mensajeOpinion) {
 
@@ -511,9 +486,7 @@ document.addEventListener(
             }
 
 
-            // ============================
             // OCULTAR FORMULARIO
-            // ============================
 
             setTimeout(
               function () {
@@ -608,7 +581,316 @@ document.addEventListener(
 
 
     // ==================================
-    // DETECTAR ESTADO DE AUTENTICACIÓN
+    // CARRUSEL - MOSTRAR OPINIONES
+    // ==================================
+
+    function mostrarOpiniones() {
+
+      if (!slider) {
+
+        return;
+
+      }
+
+
+      if (
+        !opinionesActuales.length
+      ) {
+
+        slider.innerHTML = `
+          <div class="testimonio cargando-opiniones">
+            <p>Todavía no hay opiniones publicadas.</p>
+          </div>
+        `;
+
+        detenerCarrusel();
+
+        return;
+
+      }
+
+
+      slider.innerHTML = "";
+
+
+      opinionesActuales.forEach(
+        function (opinion) {
+
+          const tarjeta =
+            document.createElement(
+              "div"
+            );
+
+
+          tarjeta.className =
+            "testimonio";
+
+
+          const estrellas =
+            document.createElement(
+              "div"
+            );
+
+
+          estrellas.className =
+            "stars";
+
+          estrellas.innerHTML =
+            "★★★★★";
+
+
+          const texto =
+            document.createElement(
+              "p"
+            );
+
+
+          texto.textContent =
+            "“" +
+            opinion.texto +
+            "”";
+
+
+          const autor =
+            document.createElement(
+              "span"
+            );
+
+
+          autor.textContent =
+            (
+              opinion.nombre ||
+              "Cliente"
+            );
+
+
+          tarjeta.appendChild(
+            estrellas
+          );
+
+          tarjeta.appendChild(
+            texto
+          );
+
+          tarjeta.appendChild(
+            autor
+          );
+
+
+          slider.appendChild(
+            tarjeta
+          );
+
+        }
+      );
+
+
+      indiceActual = 0;
+
+
+      iniciarCarrusel();
+
+    }
+
+
+    // ==================================
+    // CARGAR OPINIONES APROBADAS
+    // ==================================
+
+    function cargarOpiniones() {
+
+      if (!slider) {
+
+        return;
+
+      }
+
+
+      slider.innerHTML = `
+        <div class="testimonio cargando-opiniones">
+          <p>Cargando opiniones...</p>
+        </div>
+      `;
+
+
+      const opinionesRef =
+        collection(
+          db,
+          "opiniones"
+        );
+
+
+      const consulta =
+        query(
+          opinionesRef,
+
+          where(
+            "aprobada",
+            "==",
+            true
+          ),
+
+          orderBy(
+            "fecha",
+            "desc"
+          ),
+
+          limit(7)
+
+        );
+
+
+      // ==================================
+      // ACTUALIZACIÓN EN TIEMPO REAL
+      // ==================================
+
+      onSnapshot(
+        consulta,
+
+        function (snapshot) {
+
+          opinionesActuales =
+            snapshot.docs.map(
+              function (doc) {
+
+                return {
+
+                  id:
+                    doc.id,
+
+                  ...doc.data()
+
+                };
+
+              }
+            );
+
+
+          console.log(
+            "✅ OPINIONES APROBADAS:",
+            opinionesActuales.length
+          );
+
+
+          mostrarOpiniones();
+
+        },
+
+        function (error) {
+
+          console.error(
+            "❌ ERROR AL CARGAR OPINIONES:",
+            error
+          );
+
+
+          if (slider) {
+
+            slider.innerHTML = `
+              <div class="testimonio cargando-opiniones">
+                <p>No se pudieron cargar las opiniones.</p>
+              </div>
+            `;
+
+          }
+
+        }
+      );
+
+    }
+
+
+    // ==================================
+    // INICIAR CARRUSEL AUTOMÁTICO
+    // ==================================
+
+    function iniciarCarrusel() {
+
+      detenerCarrusel();
+
+
+      if (
+        !slider ||
+        opinionesActuales.length <= 1
+      ) {
+
+        return;
+
+      }
+
+
+      intervaloCarrusel =
+        setInterval(
+          function () {
+
+            slider.scrollBy({
+
+              left:
+                slider.clientWidth,
+
+              behavior:
+                "smooth"
+
+            });
+
+          },
+          4000
+        );
+
+    }
+
+
+    // ==================================
+    // DETENER CARRUSEL
+    // ==================================
+
+    function detenerCarrusel() {
+
+      if (
+        intervaloCarrusel
+      ) {
+
+        clearInterval(
+          intervaloCarrusel
+        );
+
+        intervaloCarrusel =
+          null;
+
+      }
+
+    }
+
+
+    // ==================================
+    // PAUSAR AL PASAR EL RATÓN
+    // ==================================
+
+    if (slider) {
+
+      slider.addEventListener(
+        "mouseenter",
+        detenerCarrusel
+      );
+
+
+      slider.addEventListener(
+        "mouseleave",
+        iniciarCarrusel
+      );
+
+    }
+
+
+    // ==================================
+    // CARGAR OPINIONES
+    // ==================================
+
+    cargarOpiniones();
+
+
+    // ==================================
+    // ESTADO DE AUTENTICACIÓN
     // ==================================
 
     onAuthStateChanged(
