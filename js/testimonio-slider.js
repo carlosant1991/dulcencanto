@@ -1,6 +1,6 @@
 // ========================================
 // TESTIMONIOS - DULCE ENCANTO
-// ETAPA 2: INICIO DE SESIÓN CON GOOGLE
+// GOOGLE LOGIN + FIRESTORE
 // ========================================
 
 
@@ -16,6 +16,13 @@ import {
   signInWithPopup,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 
 // ========================================
@@ -36,14 +43,13 @@ const firebaseConfig = {
 // INICIAR FIREBASE
 // ========================================
 
-const app =
-  initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
-const auth =
-  getAuth(app);
+const auth = getAuth(app);
 
-const provider =
-  new GoogleAuthProvider();
+const db = getFirestore(app);
+
+const provider = new GoogleAuthProvider();
 
 
 // ========================================
@@ -93,6 +99,26 @@ document.addEventListener(
         "usuario-logueado"
       );
 
+    const textoOpinion =
+      document.getElementById(
+        "texto-opinion"
+      );
+
+    const contadorOpinion =
+      document.getElementById(
+        "contador-opinion"
+      );
+
+    const botonEnviar =
+      document.getElementById(
+        "btn-enviar-opinion"
+      );
+
+    const botonCerrar =
+      document.getElementById(
+        "btn-cerrar-opinion"
+      );
+
     const mensajeOpinion =
       document.getElementById(
         "mensaje-opinion"
@@ -112,6 +138,11 @@ document.addEventListener(
     console.log(
       "Botón Google:",
       botonGoogle
+    );
+
+    console.log(
+      "Botón publicar:",
+      botonEnviar
     );
 
 
@@ -273,6 +304,300 @@ document.addEventListener(
 
             botonGoogle.textContent =
               "🔐 Iniciar sesión con Google";
+
+          }
+
+        }
+      );
+
+    }
+
+
+    // ==================================
+    // CONTADOR DE CARACTERES
+    // ==================================
+
+    if (
+      textoOpinion &&
+      contadorOpinion
+    ) {
+
+      textoOpinion.addEventListener(
+        "input",
+        function () {
+
+          contadorOpinion.textContent =
+            textoOpinion.value.length;
+
+        }
+      );
+
+    }
+
+
+    // ==================================
+    // PUBLICAR OPINIÓN
+    // ==================================
+
+    if (botonEnviar) {
+
+      botonEnviar.addEventListener(
+        "click",
+        async function () {
+
+          console.log(
+            "📝 BOTÓN PUBLICAR PRESIONADO"
+          );
+
+
+          // ==============================
+          // VERIFICAR USUARIO
+          // ==============================
+
+          const usuario =
+            auth.currentUser;
+
+
+          if (!usuario) {
+
+            if (mensajeOpinion) {
+
+              mensajeOpinion.textContent =
+                "Debes iniciar sesión con Google antes de publicar.";
+
+            }
+
+            return;
+
+          }
+
+
+          // ==============================
+          // OBTENER TEXTO
+          // ==============================
+
+          const texto =
+            textoOpinion
+              ? textoOpinion.value.trim()
+              : "";
+
+
+          // ==============================
+          // VALIDAR OPINIÓN
+          // ==============================
+
+          if (!texto) {
+
+            if (mensajeOpinion) {
+
+              mensajeOpinion.textContent =
+                "Escribe tu opinión antes de publicarla.";
+
+            }
+
+            return;
+
+          }
+
+
+          if (texto.length < 10) {
+
+            if (mensajeOpinion) {
+
+              mensajeOpinion.textContent =
+                "Tu opinión debe tener al menos 10 caracteres.";
+
+            }
+
+            return;
+
+          }
+
+
+          // ==============================
+          // DESACTIVAR BOTÓN
+          // ==============================
+
+          botonEnviar.disabled =
+            true;
+
+          botonEnviar.textContent =
+            "Enviando...";
+
+
+          if (mensajeOpinion) {
+
+            mensajeOpinion.textContent =
+              "";
+
+          }
+
+
+          try {
+
+            // ============================
+            // GUARDAR EN FIRESTORE
+            // ============================
+
+            await addDoc(
+              collection(
+                db,
+                "opiniones"
+              ),
+              {
+
+                uid:
+                  usuario.uid,
+
+                nombre:
+                  usuario.displayName ||
+                  "Cliente",
+
+                email:
+                  usuario.email ||
+                  "",
+
+                foto:
+                  usuario.photoURL ||
+                  "",
+
+                texto:
+                  texto,
+
+                aprobada:
+                  false,
+
+                fecha:
+                  serverTimestamp()
+
+              }
+            );
+
+
+            console.log(
+              "✅ OPINIÓN GUARDADA CORRECTAMENTE"
+            );
+
+
+            // ============================
+            // LIMPIAR FORMULARIO
+            // ============================
+
+            if (textoOpinion) {
+
+              textoOpinion.value =
+                "";
+
+            }
+
+
+            if (contadorOpinion) {
+
+              contadorOpinion.textContent =
+                "0";
+
+            }
+
+
+            // ============================
+            // MENSAJE DE CONFIRMACIÓN
+            // ============================
+
+            if (mensajeOpinion) {
+
+              mensajeOpinion.textContent =
+                "¡Gracias por tu opinión! Ha sido enviada y será revisada antes de publicarse.";
+
+            }
+
+
+            // ============================
+            // OCULTAR FORMULARIO
+            // ============================
+
+            setTimeout(
+              function () {
+
+                if (
+                  formularioContenido
+                ) {
+
+                  formularioContenido.style.display =
+                    "none";
+
+                }
+
+              },
+              4000
+            );
+
+
+          } catch (error) {
+
+            console.error(
+              "❌ ERROR AL GUARDAR OPINIÓN:",
+              error
+            );
+
+
+            if (mensajeOpinion) {
+
+              mensajeOpinion.textContent =
+                "No se pudo enviar tu opinión. Inténtalo nuevamente.";
+
+            }
+
+          } finally {
+
+            botonEnviar.disabled =
+              false;
+
+            botonEnviar.textContent =
+              "Publicar mi opinión";
+
+          }
+
+        }
+      );
+
+    }
+
+
+    // ==================================
+    // BOTÓN CANCELAR
+    // ==================================
+
+    if (botonCerrar) {
+
+      botonCerrar.addEventListener(
+        "click",
+        function () {
+
+          if (formularioContenido) {
+
+            formularioContenido.style.display =
+              "none";
+
+          }
+
+          if (textoOpinion) {
+
+            textoOpinion.value =
+              "";
+
+          }
+
+          if (contadorOpinion) {
+
+            contadorOpinion.textContent =
+              "0";
+
+          }
+
+          if (mensajeOpinion) {
+
+            mensajeOpinion.textContent =
+              "";
 
           }
 
